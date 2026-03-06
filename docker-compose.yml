@@ -4,7 +4,7 @@ services:
     container_name: opensearch-chemlabs
     environment:
       - discovery.type=single-node
-      - DISABLE_SECURITY_PLUGIN=true
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_PASSWORD:-C#emlabs2026!}
       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
       - cluster.routing.allocation.disk.threshold_enabled=false
       - cluster.blocks.create_index=false
@@ -16,10 +16,25 @@ services:
     networks:
       - opensearch-net
 
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:latest
+    container_name: opensearch-dashboards-chemlabs
+    environment:
+      - OPENSEARCH_HOSTS=["https://opensearch:9200"]
+      - opensearch.username=${OPENSEARCH_USER:-admin}
+      - opensearch.password=${OPENSEARCH_PASSWORD:-C#emlabs2026!}
+      - opensearch.ssl.verificationMode=none
+    ports:
+      - "5601:5601"
+    depends_on:
+      - opensearch
+    networks:
+      - opensearch-net
+
   rag:
     build:
       context: .
-      dockerfile: rag/Dockerfile
+      dockerfile: api/Dockerfile
     container_name: chemlabs-rag
     env_file:
       - .env
@@ -28,8 +43,8 @@ services:
     environment:
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
-      - DATA_DIR=/app/data
-      - INDEX_NAMES=eqa_monthly_index,eqa_quarterly_index
+      - OPENSEARCH_USER=${OPENSEARCH_USER:-admin}
+      - OPENSEARCH_PASSWORD=${OPENSEARCH_PASSWORD:-C#emlabs2026!}
     volumes:
       - ./data:/app/data:ro
     depends_on:

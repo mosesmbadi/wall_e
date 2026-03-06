@@ -1,30 +1,33 @@
-## Download and Run OpenSearch
+## RAG
 
+## We start by chunking
+## Settig up the environment
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+## Chunking
+DATA_DIR=data/docs python -m ingestion.cli.chunk_dir
+
+
+## Then we fire up the API to handle queries
 ### Using Docker Compose (Recommended)
 
 ```bash
 docker-compose up -d
 ```
 
-To stop OpenSearch:
-
-```bash
-docker-compose down
-```
-
-To stop and remove data:
-
-```bash
-docker-compose down -v
-```
-
-### Using Docker directly
-
-```bash
-docker pull opensearchproject/opensearch:latest && docker run -it -p 9200:9200 -p 9600:9600 -e "discovery.type=single-node" -e "DISABLE_SECURITY_PLUGIN=true" -e "cluster.routing.allocation.disk.threshold_enabled=false" -e "cluster.blocks.create_index=false" opensearchproject/opensearch:latest
-```
-
 
 Better model options (if you have more resources):
 - google/flan-t5-large - Good balance of quality and speed
 - mistralai/Mistral-7B-Instruct-v0.1 - Higher quality but slower
+
+## Let's send sample query
+curl -X POST http://localhost:5000/query \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What is this document about?"}'
+
+### Pin to speciic index
+curl -X POST http://localhost:5000/query \
+  -H "Content-Type: application/json" \
+  -d '{"question": "...", "index": "docs_index"}'

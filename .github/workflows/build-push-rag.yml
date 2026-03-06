@@ -5,13 +5,13 @@ on:
     branches:
       - main
     paths:
-      - "rag/**"
+      - "api/**"
       - ".github/workflows/build-push-rag.yml"
   pull_request:
     branches:
       - main
     paths:
-      - "rag/**"
+      - "api/**"
 
 jobs:
   build-and-push:
@@ -44,7 +44,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: rag/Dockerfile
+          file: api/Dockerfile
           push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
