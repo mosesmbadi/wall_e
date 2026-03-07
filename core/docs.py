@@ -20,8 +20,6 @@ def clean_doc_name(filename: str) -> str:
 
 def infer_doc_type(filename: str) -> str:
     lower = filename.lower()
-    if "lis" in lower or "interface" in lower:
-        return "LIS Integration Guide"
     if "service manual" in lower or lower.endswith("_sm.pdf") or " sm.pdf" in lower:
         return "Service Manual"
     if "user manual" in lower or "manual" in lower:

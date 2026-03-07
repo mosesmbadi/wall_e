@@ -7,7 +7,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 ## Chunking
-DATA_DIR=data/docs python -m ingestion.cli.chunk_dir
+DATA_DIR=data/docs python -m ingestion.cli.chunk_dir --fresh
 
 
 ## Then we fire up the API to handle queries
