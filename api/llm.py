@@ -1,9 +1,59 @@
 """LLM integration — Gemini API and local HuggingFace fallback."""
 from __future__ import annotations
+import itertools
+import sys
+import threading
+import time
+
 from core.config import (
     LLM_PROVIDER, GEMINI_API_KEY, GEMINI_MODEL,
     LLM_MODEL, MAX_ANSWER_LENGTH,
 )
+
+# ── Thinking indicator ────────────────────────────────────────────────────────
+
+_THINKING_MESSAGES = [
+    "Thinking...",
+    "Processing...",
+    "Crunching the numbers...",
+    "Working on it...",
+    "Searching...",
+    "Putting things together...",
+    "Hang tight...",
+    "This is taking longer than usual...",
+    "Almost there...",
+    "Warming things up...",
+]
+
+
+class _ThinkingIndicator:
+    def __init__(self) -> None:
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread:
+            self._thread.join()
+        # Clear the last printed line
+        sys.stdout.write("\r" + " " * 50 + "\r")
+        sys.stdout.flush()
+
+    def _run(self) -> None:
+        for msg in itertools.cycle(_THINKING_MESSAGES):
+            if self._stop.is_set():
+                break
+            sys.stdout.write(f"\r{msg}")
+            sys.stdout.flush()
+            for _ in range(30):  # check stop every 0.1s; each message shows for 3s
+                if self._stop.is_set():
+                    return
+                time.sleep(0.1)
 
 # ── Gemini ────────────────────────────────────────────────────────────────────
 
@@ -142,6 +192,11 @@ Answer based strictly on the context above:</|user|>
 def generate_answer(
     question: str, context_chunks: list[dict], history: list[dict] | None = None
 ) -> str:
-    if _active_provider == "gemini":
-        return generate_answer_with_gemini(question, context_chunks, history=history)
-    return generate_answer_with_local_llm(question, context_chunks, history=history)
+    indicator = _ThinkingIndicator()
+    indicator.start()
+    try:
+        if _active_provider == "gemini":
+            return generate_answer_with_gemini(question, context_chunks, history=history)
+        return generate_answer_with_local_llm(question, context_chunks, history=history)
+    finally:
+        indicator.stop()

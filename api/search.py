@@ -12,11 +12,19 @@ _default_index = resolve_search_index(INDEX_NAMES)
 print(f"Default search index/indices: {_default_index}")
 
 
+# Maps the user-facing data_source value to the source_type values stored in OpenSearch
+_DATA_SOURCE_TYPES: dict[str, list[str]] = {
+    "db":   ["db", "csv"],
+    "docs": ["pdf"],
+}
+
+
 def search(
     query: str,
     k: int = 10,
     use_hybrid: bool = True,
     doc_filter: dict | None = None,
+    data_source: str | None = None,
     index: str | None = None,
 ) -> list[dict]:
     query_vector = get_model().encode(query).tolist()
@@ -33,16 +41,18 @@ def search(
     else:
         base_query = {"knn": {"content_vector": {"vector": query_vector, "k": k}}}
 
+    filter_clauses = []
     if doc_filter:
-        filter_clauses = []
         for field in ("doc_name", "doc_type", "source_file"):
             if field in doc_filter:
                 filter_clauses.append({"term": {field: doc_filter[field]}})
-        if filter_clauses:
-            if use_hybrid:
-                base_query["bool"]["filter"] = filter_clauses
-            else:
-                base_query = {"bool": {"must": [base_query], "filter": filter_clauses}}
+    if data_source and data_source in _DATA_SOURCE_TYPES:
+        filter_clauses.append({"terms": {"source_type": _DATA_SOURCE_TYPES[data_source]}})
+    if filter_clauses:
+        if use_hybrid:
+            base_query["bool"]["filter"] = filter_clauses
+        else:
+            base_query = {"bool": {"must": [base_query], "filter": filter_clauses}}
 
     target_index = index or _default_index
     try:
@@ -69,6 +79,7 @@ def answer_question(
     k: int = 10,
     use_llm: bool = True,
     doc_filter: dict | None = None,
+    data_source: str | None = None,
     history: list[dict] | None = None,
     min_score: float | None = None,
     index: str | None = None,
@@ -84,9 +95,9 @@ def answer_question(
             search_query = f"{last_user} {question}"
 
     effective_filter = doc_filter or infer_doc_filter_from_question(question)
-    results = search(search_query, k, doc_filter=effective_filter, index=index)
+    results = search(search_query, k, doc_filter=effective_filter, data_source=data_source, index=index)
     if not results and effective_filter:
-        results = search(search_query, k, doc_filter=None, index=index)
+        results = search(search_query, k, doc_filter=None, data_source=data_source, index=index)
 
     results = [r for r in results if r["score"] >= threshold]
 
@@ -103,4 +114,4 @@ def answer_question(
             f"[Relevance: {r['score']:.2f}]\n{r['text']}" for r in results
         )
 
-    return {"answer": answer_text, "sources": results, "doc_filter": effective_filter}
+    return {"answer": answer_text, "sources": results, "doc_filter": effective_filter, "data_source": data_source}

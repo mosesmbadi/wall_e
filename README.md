@@ -24,12 +24,12 @@ Better model options (if you have more resources):
 - google/flan-t5-large - Good balance of quality and speed
 - mistralai/Mistral-7B-Instruct-v0.1 - Higher quality but slower
 
-## Let's send sample query
+# Only search database-indexed content
 curl -X POST http://localhost:5000/query \
   -H "Content-Type: application/json" \
-  -d '{"question": "What is this document about?"}'
+  -d '{"question": "How many jobs were marked closed in 2025", "data_source": "db"}'
 
-### Pin to speciic index
+# Only search documents (PDFs)
 curl -X POST http://localhost:5000/query \
   -H "Content-Type: application/json" \
-  -d '{"question": "...", "index": "docs_index"}'
+  -d '{"question": "What is the ISO 17025 nonconformance procedure?", "data_source": "docs"}'

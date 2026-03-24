@@ -26,6 +26,7 @@ def query():
         k=int(data.get("k", 10)),
         use_llm=bool(data.get("use_llm", True)),
         doc_filter=data.get("doc_filter") or None,
+        data_source=data.get("data_source") or None,
         history=data.get("history") or None,
         min_score=float(data["min_score"]) if "min_score" in data else None,
         index=data.get("index") or None,
