@@ -27,7 +27,7 @@ Better model options (if you have more resources):
 # Only search database-indexed content
 curl -X POST http://localhost:5000/query \
   -H "Content-Type: application/json" \
-  -d '{"question": "How many jobs were marked closed in 2025", "data_source": "db"}'
+  -d '{"question": "How many jobs were marked closed in 2025", "data_source":"db", "db_name":"sp-api"}'
 
 # Only search documents (PDFs)
 curl -X POST http://localhost:5000/query \

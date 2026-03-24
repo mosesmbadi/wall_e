@@ -8,6 +8,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY core/ ./core/
 COPY api/ ./api/
+COPY ingestion/ ./ingestion/
+COPY data/ ./data/
 
 ENV PYTHONUNBUFFERED=1
 
