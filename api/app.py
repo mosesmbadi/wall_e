@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify
 
 from api.catalog import DOCUMENT_CATALOG
 from api.search import answer_question, search
+from core.config import ENVIRONMENT
 
 app = Flask(__name__)
 
@@ -29,6 +30,10 @@ def query():
         min_score=float(data["min_score"]) if "min_score" in data else None,
         index=data.get("index") or None,
     )
+    
+    if ENVIRONMENT.lower() == "production":
+        return jsonify({"answer": result["answer"]})
+        
     return jsonify(result)
 
 

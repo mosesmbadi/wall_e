@@ -24,7 +24,7 @@ import psycopg2.extras
 
 from core.config import MAX_ROWS_PER_TABLE, LOOKUP_MAX_ROWS, STREAM_BATCH
 from core.docs import db_name_to_index
-from ingestion.chunkers.csv import process_rows
+from ingestion.chunkers.db import process_db_rows
 from ingestion.indexer import bulk_index, ensure_index
 from ingestion.schema import (
     build_lookup_tables_from_rows, build_schema_document_from_rows, schema_to_chunks,
@@ -136,7 +136,7 @@ def _stream_and_index_table(
                 break
             rows = [dict(r) for r in batch]
             rows_seen += len(rows)
-            chunks = process_rows(table_name, rows, lookups=lookups)
+            chunks = process_db_rows(table_name, rows, lookups=lookups)
             if chunks:
                 indexed = bulk_index(chunks, index_name, start_id=doc_id)
                 doc_id += indexed

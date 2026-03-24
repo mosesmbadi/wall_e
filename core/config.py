@@ -28,6 +28,7 @@ GEMINI_API_KEY    = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL      = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 LLM_MODEL         = os.getenv("LLM_MODEL_CPU_FALLBACK", "TinyLlama/TinyLlama-1.1B-Chat-v1.0")
 MAX_ANSWER_LENGTH = int(os.getenv("MAX_ANSWER_LENGTH", "500"))
+ENVIRONMENT       = os.getenv("ENVIRONMENT", "Development")
 
 # Ingestion (DB)
 MAX_ROWS_PER_TABLE = int(os.getenv("MAX_ROWS_PER_TABLE", "50000"))

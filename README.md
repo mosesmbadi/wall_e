@@ -6,9 +6,11 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-## Chunking
+## Chunking data
 DATA_DIR=data/docs python -m ingestion.cli.chunk_dir --fresh
 
+## Chunking database tables
+python -m ingestion.cli.chunk_db --fresh
 
 ## Then we fire up the API to handle queries
 ### Using Docker Compose (Recommended)
