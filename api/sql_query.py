@@ -12,7 +12,7 @@ import re
 import psycopg2
 import psycopg2.extras
 
-from api.llm import generate_answer_with_gemini, _gemini_client
+from api.llm import _gemini_client
 from core.config import MAX_ROWS_PER_TABLE, GEMINI_MODEL
 
 
@@ -128,19 +128,15 @@ def _extract_sql(text: str) -> str | None:
 
 def _generate_sql(question: str, schema: str, db_name: str, annotation: str = "") -> str | None:
     """Ask the LLM to produce a SQL SELECT for the question given the schema."""
-    from google import genai  # type: ignore
+    annotation_block = f"\n## Business context & relationships\n{annotation}\n" if annotation else ""
 
-    if not _gemini_client:
-        return None
+    # For local LLM: schema is too large for a 2048-token context window.
+    # Use only the annotation (which already has table/column info) and a
+    # compact 10-line schema excerpt so the prompt stays under ~1500 tokens.
+    schema_for_local = "\n".join(schema.splitlines()[:30])
 
-    annotation_block = ""
-    if annotation:
-        annotation_block = f"""
-## Business context & relationships
-{annotation}
-"""
-
-    prompt = f"""You are an expert PostgreSQL query writer. Given the database schema below,
+    if _gemini_client:
+        prompt = f"""You are an expert PostgreSQL query writer. Given the database schema below,
 write a single read-only SELECT query that answers the user's question.
 
 Database: {db_name}
@@ -158,15 +154,57 @@ Rules:
 
 Question: {question}
 """
-    try:
-        response = _gemini_client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
-        raw = response.text.strip()
-        if "CANNOT_ANSWER" in raw:
+        try:
+            response = _gemini_client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+            raw = response.text.strip()
+            if "CANNOT_ANSWER" in raw:
+                return None
+            return _extract_sql(raw)
+        except Exception as e:
+            print(f"SQL generation error: {e}")
             return None
-        return _extract_sql(raw)
-    except Exception as e:
-        print(f"SQL generation error: {e}")
+
+    # ── Local LLM fallback ────────────────────────────────────────────────────
+    from api.llm import _load_local_llm, _llm_tokenizer, _llm_model, MAX_ANSWER_LENGTH  # type: ignore
+    _load_local_llm()
+    # Re-import after loading so we get the populated globals
+    import api.llm as _llm_mod
+    tokenizer = _llm_mod._llm_tokenizer
+    model = _llm_mod._llm_model
+    if model is None or tokenizer is None:
         return None
+
+    prompt = f"""<|system|>
+You are a PostgreSQL expert. Write a single SELECT query to answer the question.
+Output ONLY the SQL inside a ```sql block. Never use INSERT/UPDATE/DELETE/DROP.
+If you cannot write a safe SELECT, output: CANNOT_ANSWER
+</|system|>
+<|user|>
+Database: {db_name}
+{annotation_block}
+Schema (partial):
+{schema_for_local}
+
+Question: {question}
+</|user|>
+<|assistant|>
+```sql
+"""
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1800)
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=200,
+        temperature=0.1,
+        do_sample=False,
+        pad_token_id=tokenizer.eos_token_id,
+    )
+    full = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    # The model continues from the ```sql prefix we injected
+    after_prompt = full[len(prompt.replace("```sql\n", "")):]
+    raw = "```sql\n" + after_prompt
+    if "CANNOT_ANSWER" in raw:
+        return None
+    return _extract_sql(raw)
 
 
 # ── Result formatting ─────────────────────────────────────────────────────────
@@ -262,7 +300,8 @@ def answer_with_sql(question: str, db_name: str | None = None) -> dict:
 
         # Ask LLM to narrate the raw result in plain English
         narrative_prompt = f"The user asked: \"{question}\"\n\nSQL result:\n{result_text}\n\nSummarise the result in one or two clear sentences."
-        answer = generate_answer_with_gemini(narrative_prompt, [])
+        from api.llm import generate_answer  # type: ignore
+        answer = generate_answer(narrative_prompt, [])
 
         return {"answer": answer, "sql": sql}
 

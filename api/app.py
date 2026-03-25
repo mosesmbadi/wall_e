@@ -31,14 +31,17 @@ def query():
         return jsonify({"error": "Missing required field: question"}), 400
 
     data_source = data.get("data_source") or None
+    db_name = data.get("db_name") or None
     use_sql = data.get("use_sql", None)  # explicit override
 
-    # Auto-route to SQL when question looks like an aggregation and data_source is db
+    # Auto-route to SQL:
+    #  - always when db_name is explicitly provided (user wants to query a live DB)
+    #  - or when data_source=db + question looks like an aggregation
     if use_sql is None:
-        use_sql = data_source == "db" and bool(_SQL_PATTERN.search(question))
+        use_sql = bool(db_name) or (data_source == "db" and bool(_SQL_PATTERN.search(question)))
 
     if use_sql:
-        result = answer_with_sql(question, db_name=data.get("db_name") or None)
+        result = answer_with_sql(question, db_name=db_name)
         if ENVIRONMENT.lower() == "production":
             return jsonify({"answer": result["answer"]})
         return jsonify(result)
